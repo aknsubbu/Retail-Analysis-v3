@@ -12,8 +12,11 @@ from langchain.memory import ConversationBufferMemory
 from langchain.agents import initialize_agent, AgentType
 import matplotlib.pyplot as plt
 import seaborn as sns
+import logging
 
 load_dotenv()
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class RetailDataAnalyzer:
     def __init__(self, csv_path):
@@ -26,10 +29,36 @@ class RetailDataAnalyzer:
         self.agent = self._setup_agent()
 
     def _load_data(self, csv_path):
-        df = pd.read_csv(csv_path)
-        df['Date'] = pd.to_datetime(df['Date'])
-        df['Month'] = df['Date'].dt.month
-        df['Year'] = df['Date'].dt.year
+        logging.debug(f"Attempting to load data from {csv_path}")
+        
+        # Check if the file exists
+        if not os.path.exists(csv_path):
+            logging.error(f"CSV file not found: {csv_path}")
+            raise FileNotFoundError(f"CSV file not found: {csv_path}")
+        
+        # Check if the file is readable
+        if not os.access(csv_path, os.R_OK):
+            logging.error(f"CSV file is not readable: {csv_path}")
+            raise PermissionError(f"CSV file is not readable: {csv_path}")
+        
+        # Try to read the CSV file
+        try:
+            df = pd.read_csv(csv_path)
+            logging.debug(f"Successfully loaded CSV file with {len(df)} rows")
+        except Exception as e:
+            logging.error(f"Error reading CSV file: {str(e)}")
+            raise
+
+        # Process the dataframe
+        try:
+            df['Date'] = pd.to_datetime(df['Date'])
+            df['Month'] = df['Date'].dt.month
+            df['Year'] = df['Date'].dt.year
+            logging.debug("Data processed successfully")
+        except Exception as e:
+            logging.error(f"Error processing data: {str(e)}")
+            raise
+
         return df
 
     def _create_tools(self):
@@ -186,36 +215,46 @@ class PromotionAnalysis:
 
 # Usage
 if __name__ == "__main__":
-    retail_analyzer = RetailDataAnalyzer('retail_data.csv')
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(script_dir, 'retail_data.csv')
+    logging.info(f"Script directory: {script_dir}")
+    logging.info(f"CSV path: {csv_path}")
 
-    product_analysis = ProductAnalysis(retail_analyzer)
-    customer_analysis = CustomerAnalysis(retail_analyzer)
-    seasonal_analysis = SeasonalAnalysis(retail_analyzer)
-    financial_analysis = FinancialAnalysis(retail_analyzer)
-    transaction_analysis = TransactionAnalysis(retail_analyzer)
-    anomaly_detection = AnomalyDetection(retail_analyzer)
-    custom_question = CustomQuestion(retail_analyzer)
+    try:
+        retail_analyzer = RetailDataAnalyzer(csv_path)
+        product_analysis = ProductAnalysis(retail_analyzer)
+        customer_analysis = CustomerAnalysis(retail_analyzer)
+        seasonal_analysis = SeasonalAnalysis(retail_analyzer)
+        financial_analysis = FinancialAnalysis(retail_analyzer)
+        transaction_analysis = TransactionAnalysis(retail_analyzer)
+        anomaly_detection = AnomalyDetection(retail_analyzer)
+        custom_question = CustomQuestion(retail_analyzer)
 
-    # print("Top Products by Sales:")
-    # print(product_analysis.top_products_by_sales())
+        # print("Top Products by Sales:")
+        # print(product_analysis.top_products_by_sales())
 
-    # print("\nCustomer Segmentation:")
-    # print(customer_analysis.segment_customers())
+        # print("\nCustomer Segmentation:")
+        # print(customer_analysis.segment_customers())
 
-    # print("\nSeasonal Trends:")
-    # print(seasonal_analysis.analyze_trends())
+        # print("\nSeasonal Trends:")
+        # print(seasonal_analysis.analyze_trends())
 
-    # print("\nTop Customers by Lifetime Value:")
-    # print(customer_analysis.top_customers_by_lifetime_value())
+        # print("\nTop Customers by Lifetime Value:")
+        # print(customer_analysis.top_customers_by_lifetime_value())
 
-    # print("\nDiscount Correlation:")
-    # print(financial_analysis.discount_correlation())
+        # print("\nDiscount Correlation:")
+        # print(financial_analysis.discount_correlation())
 
-    # print("\nPayment Methods for High-Value Transactions:")
-    # print(transaction_analysis.payment_methods())
+        # print("\nPayment Methods for High-Value Transactions:")
+        # print(transaction_analysis.payment_methods())
 
-    # print("\nTransaction Value by Store Type:")
-    # print(transaction_analysis.transaction_value_by_store_type())
+        # print("\nTransaction Value by Store Type:")
+        # print(transaction_analysis.transaction_value_by_store_type())
 
-    print("Custom Question: ")
-    print(custom_question.ask_question("What is the top sold item in Chicago ?"))
+        print("Custom Question: ")
+        print(custom_question.ask_question("Give a inventory restocking forecast ?"))
+
+
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}", exc_info=True)
+        print(f"An error occurred: {str(e)}")

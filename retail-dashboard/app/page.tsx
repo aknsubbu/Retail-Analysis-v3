@@ -93,18 +93,22 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (csvData.length > 0) {
       const processedSalesData = processDataByTimePeriod(csvData, timePeriod);
+
       setSalesData(processedSalesData);
       const processedStoreTypeData = processDataForPieChart(
         csvData,
         "Store_Type"
       );
+
       setStoreTypeData(processedStoreTypeData);
       const processedProductCategoryData = processDataForPieChart(
         csvData,
         "Product"
       );
+
       setProductCategoryData(processedProductCategoryData);
       const processedCityData = processDataForBarChart(csvData, "City");
+
       setCityDistributionData(processedCityData);
       setTotalTransactions(csvData.length);
     }
@@ -135,6 +139,7 @@ const Dashboard: React.FC = () => {
       }
 
       const cost = parseFloat(transaction.Total_Cost);
+
       salesByPeriod[key] = (salesByPeriod[key] || 0) + cost;
     });
 
@@ -181,8 +186,10 @@ const Dashboard: React.FC = () => {
       Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
     );
     const dayNum = d.getUTCDay() || 7;
+
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+
     return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   };
 
@@ -206,7 +213,7 @@ const Dashboard: React.FC = () => {
       <div className="absolute inset-0 overflow-hidden">
         {/* <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-indigo-700 rounded-full filter blur-[100px] opacity-30 animate-pulse"></div> */}
         {/* <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-purple-700 rounded-full filter blur-[100px] opacity-30 animate-pulse"></div> */}
-        <div className="animate-spin-slow absolute left-1/2 top-1/2 size-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 blur-[100px]"></div>
+        <div className="animate-spin-slow absolute left-1/2 top-1/2 size-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 blur-[100px]" />
       </div>
       <div className="">
         <DockDemo />
@@ -308,14 +315,14 @@ const Dashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="h-[400px]">
               {salesData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer height="100%" width="100%">
                   <AreaChart data={salesData}>
                     <defs>
                       <linearGradient
                         id="colorSales"
                         x1="0"
-                        y1="0"
                         x2="0"
+                        y1="0"
                         y2="1"
                       >
                         <stop
@@ -337,11 +344,11 @@ const Dashboard: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <Tooltip />
                     <Area
-                      type="monotone"
                       dataKey="sales"
-                      stroke="#8884d8"
-                      fillOpacity={1}
                       fill="url(#colorSales)"
+                      fillOpacity={1}
+                      stroke="#8884d8"
+                      type="monotone"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -359,17 +366,17 @@ const Dashboard: React.FC = () => {
               <CardDescription>Top 5 store types</CardDescription>
             </CardHeader>
             <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer height="100%" width="100%">
                 <PieChart>
                   <Pie
-                    data={storeTypeData}
-                    dataKey="value"
-                    nameKey="name"
+                    label
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
+                    data={storeTypeData}
+                    dataKey="value"
                     fill="#8884d8"
-                    label
+                    nameKey="name"
+                    outerRadius={80}
                   >
                     {storeTypeData.map((entry, index) => (
                       <Cell
@@ -392,17 +399,17 @@ const Dashboard: React.FC = () => {
               <CardDescription>Top 5 product categories</CardDescription>
             </CardHeader>
             <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer height="100%" width="100%">
                 <PieChart>
                   <Pie
-                    data={productCategoryData}
-                    dataKey="value"
-                    nameKey="name"
+                    label
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
+                    data={productCategoryData}
+                    dataKey="value"
                     fill="#82ca9d"
-                    label
+                    nameKey="name"
+                    outerRadius={80}
                   >
                     {productCategoryData.map((entry, index) => (
                       <Cell
@@ -424,7 +431,7 @@ const Dashboard: React.FC = () => {
             <CardDescription>Top 10 cities by transactions</CardDescription>
           </CardHeader>
           <CardContent className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer height="100%" width="100%">
               <BarChart
                 data={cityDistributionData}
                 layout="vertical"
