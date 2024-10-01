@@ -69,7 +69,7 @@ def get_analysis_class(analysis_type: str):
     return analysis_classes.get(analysis_type)
 
 @app.post("/analyze", response_model=AnalysisResponse)
-@limiter.limit("5/minute")
+@limiter.limit("10/minute")
 async def analyze(request: AnalysisRequest, req: Request):
     logger.info(f"Received analysis request: {request.analysis_type}")
     
