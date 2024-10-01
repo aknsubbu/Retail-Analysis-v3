@@ -157,48 +157,48 @@ class ProductAnalysis:
     def __init__(self, analyzer):
         self.analyzer = analyzer
 
-    def top_products_by_sales(self):
+    def analyze(self):
         return self.analyzer.analyze("What are the top 5 products by total sales?")
 
 class CustomerAnalysis:
     def __init__(self, analyzer):
         self.analyzer = analyzer
 
-    def segment_customers(self):
+    def analyze(self):
         return self.analyzer.analyze("Can you perform customer segmentation and describe the characteristics of each segment?")
 
-    def top_customers_by_lifetime_value(self):
-        return self.analyzer.analyze("Who are our top 10 customers by lifetime value?")
+    # def top_customers_by_lifetime_value(self):
+    #     return self.analyzer.analyze("Who are our top 10 customers by lifetime value?")
 
 class SeasonalAnalysis:
     def __init__(self, analyzer):
         self.analyzer = analyzer
 
-    def analyze_trends(self):
+    def analyze(self):
         return self.analyzer.analyze("What are the seasonal trends in our sales data?")
 
 class FinancialAnalysis:
     def __init__(self, analyzer):
         self.analyzer = analyzer
 
-    def discount_correlation(self):
+    def analyze(self):
         return self.analyzer.analyze("Is there a correlation between discount applied and total cost?")
 
 class TransactionAnalysis:
     def __init__(self, analyzer):
         self.analyzer = analyzer
 
-    def payment_methods(self):
+    def analyze(self):
         return self.analyzer.analyze("What's the most common payment method for high-value transactions?")
 
-    def transaction_value_by_store_type(self):
-        return self.analyzer.analyze("How does the average transaction value vary across different store types?")
+    # def transaction_value_by_store_type(self):
+    #     return self.analyzer.analyze("How does the average transaction value vary across different store types?")
 
 class AnomalyDetection:
     def __init__(self, analyzer):
         self.analyzer = analyzer
 
-    def detect_anomalies(self):
+    def analyze(self):
         return self.analyzer.analyze("Can you identify any interesting patterns or anomalies in the data?")
     
 class GenderBasedItemAnalysis:
