@@ -25,7 +25,6 @@
 7. [AI Assistant Capabilities](#ai-assistant-capabilities)
 8. [Troubleshooting](#troubleshooting)
 9. [Contributing](#contributing)
-10. [License](#license)
 
 ## Introduction
 
