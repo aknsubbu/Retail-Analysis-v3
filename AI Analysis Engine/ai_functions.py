@@ -25,6 +25,33 @@ class RetailDataAnalyzer:
         self.pandas_agent = create_pandas_dataframe_agent(
             self.llm, self.df, verbose=True, allow_dangerous_code=True
         )
+        self.instruction = """
+You are an expert retail data analyst with years of experience in interpreting complex retail datasets. Your task is to provide comprehensive, actionable insights from the given retail data. Follow these guidelines:
+
+1. Always start by understanding the data structure and key metrics.
+2. Provide both high-level summaries and detailed breakdowns of important trends.
+3. Identify correlations between different variables and explain their potential business implications.
+4. Suggest concrete, data-driven strategies to improve sales, customer retention, and overall business performance.
+5. When appropriate, compare current performance to industry benchmarks or historical data.
+6. Always consider the practical application of your insights for business decision-making.
+7. Donot create images...
+8. Always give data driven analysis
+"""
+        self.context = """
+When analyzing the data, consider these industry-specific metrics and KPIs:
+
+Sales per square foot
+Inventory turnover ratio
+Gross margin return on investment (GMROI)
+Customer acquisition cost (CAC)
+Average transaction value
+Conversion rate
+Year-over-year growth
+Same-store sales growth
+
+Remember to support your insights with specific data points, visualizations when appropriate, and always tie your recommendations back to potential business impact.
+
+"""
         self.tools = self._create_tools()
         self.agent = self._setup_agent()
 
@@ -92,7 +119,10 @@ class RetailDataAnalyzer:
             self.llm,
             agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
             verbose=True,
-            memory=memory
+            memory=memory,
+            agent_kwargs={
+                "prefix": f"{self.instruction}\n\nContext: {self.context}\n\n"
+            }
         )
 
     def analyze(self, question):
@@ -198,6 +228,111 @@ class PaymentMethodAnalysis:
 
     def analyze(self):
         return self.analyzer.analyze("What are the most common payment methods used by customers in each location and category?")
+    
+class BasketSizeAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("What is the average basket size (number of items per transaction) and how does it vary by store type or location?")
+
+class ProfitMarginAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("Which product categories have the highest profit margins?")
+
+class ProductAssociationAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("Are there any products that are frequently purchased together? Can we identify any strong product associations?")
+
+class CustomerSpendingBehaviorAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("How does customer spending behavior change during different times of the day or days of the week?")
+
+class CustomerRetentionAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("What is the customer retention rate, and how does it vary across different customer segments?")
+
+class ProductReturnAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("Which products have the highest return rates, and are there any patterns in the reasons for returns?")
+
+class WeatherImpactAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("How do weather conditions affect sales of specific product categories?")
+
+class LoyaltyProgramAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("What is the impact of loyalty programs on customer purchase frequency and average transaction value?")
+
+class UnderperformingProductsAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("Are there any underperforming products that we should consider discontinuing?")
+
+class MarketingChannelEffectivenessAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("How does the effectiveness of different marketing channels vary in terms of driving sales and customer acquisition?")
+
+class RepeatPurchaseIntervalAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("What is the average time between purchases for repeat customers, and how can we reduce this interval?")
+
+class UrbanRuralSalesAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("How do sales trends differ between urban and rural store locations?")
+
+class StaffTrainingImpactAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("What is the correlation between staff training levels and sales performance in different store locations?")
+
+class SeasonalPromotionImpactAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("How do seasonal promotions impact overall profitability compared to regular sales periods?")
+
+class OptimalPricingAnalysis:
+    def __init__(self, analyzer):
+        self.analyzer = analyzer
+
+    def analyze(self):
+        return self.analyzer.analyze("What is the optimal price point for our best-selling products to maximize both sales volume and profit?")
 
 class CustomQuestion:
     def __init__(self, analyzer):
@@ -251,8 +386,8 @@ if __name__ == "__main__":
         # print("\nTransaction Value by Store Type:")
         # print(transaction_analysis.transaction_value_by_store_type())
 
-        print("Custom Question: ")
-        print(custom_question.ask_question("Give a inventory restocking forecast ?"))
+        # print("Custom Question: ")
+        # print(custom_question.ask_question("Reach a sales analysis for the given CSV Retail Data ?"))
 
 
     except Exception as e:
