@@ -1,13 +1,12 @@
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from ai_functions import *
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
+
 
 # Set up logging
 logging.basicConfig(
@@ -18,12 +17,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Set up rate limiting
-limiter = Limiter(key_func=get_remote_address)
+
 
 app = FastAPI()
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Replace with your React app's URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize the RetailDataAnalyzer
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -68,39 +73,31 @@ def get_analysis_class(analysis_type: str):
     }
     return analysis_classes.get(analysis_type)
 
+
 @app.post("/analyze", response_model=AnalysisResponse)
-@limiter.limit("10/minute")
-async def analyze(request: AnalysisRequest, req: Request):
-    logger.info(f"Received analysis request: {request.analysis_type}")
+async def analyze(request: Request, analysis_request: AnalysisRequest):
+    logger.info(f"Received analysis request: {analysis_request.analysis_type}")
     
     try:
-        if request.analysis_type == 'custom':
-            if not request.custom_question:
+        if analysis_request.analysis_type == 'custom':
+            if not analysis_request.custom_question:
                 logger.error("Custom question is required for custom analysis")
                 raise HTTPException(status_code=400, detail="Custom question is required for custom analysis")
             analysis = CustomQuestion(retail_analyzer)
-            result = analysis.ask_question(request.custom_question)
+            result = analysis.ask_question(analysis_request.custom_question)
         else:
-            analysis_class = get_analysis_class(request.analysis_type)
+            analysis_class = get_analysis_class(analysis_request.analysis_type)
             if not analysis_class:
-                logger.error(f"Invalid analysis type: {request.analysis_type}")
+                logger.error(f"Invalid analysis type: {analysis_request.analysis_type}")
                 raise HTTPException(status_code=400, detail="Invalid analysis type")
             analysis = analysis_class(retail_analyzer)
             result = analysis.analyze()
         
-        logger.info(f"Analysis completed successfully for: {request.analysis_type}")
+        logger.info(f"Analysis completed successfully for: {analysis_request.analysis_type}")
         return AnalysisResponse(result=result)
     except Exception as e:
         logger.error(f"Error during analysis: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred during analysis")
-
-@app.exception_handler(RateLimitExceeded)
-async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
-    logger.warning(f"Rate limit exceeded for IP: {request.client.host}")
-    return JSONResponse(
-        status_code=429,
-        content={"detail": "Too many requests, please try again later."}
-    )
 
 if __name__ == "__main__":
     import uvicorn

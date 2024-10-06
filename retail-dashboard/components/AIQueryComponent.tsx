@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { MessageSquare, Send } from "lucide-react";
+import axios from "axios";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,35 +15,127 @@ import { Input } from "@/components/ui/input";
 
 type AIResponse = string;
 
+type AnalysisType =
+  | "product"
+  | "customer"
+  | "seasonal"
+  | "financial"
+  | "transaction"
+  | "anomaly"
+  | "gender_based_item"
+  | "location_based_category"
+  | "location_based_item"
+  | "payment_method"
+  | "promotion"
+  | "custom";
+
+interface FAQItem {
+  question: string;
+  analysisType: AnalysisType;
+}
+
+// Create an Axios instance with default configuration
+const api = axios.create({
+  baseURL: "http://localhost:8000",
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
+  withCredentials: true,
+});
+
 const AIAssistant: React.FC = () => {
   const [query, setQuery] = useState<string>("");
   const [response, setResponse] = useState<AIResponse>("");
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const faqQuestions = [
-    "What are the top 5 products by total sales?",
-    "Can you perform customer segmentation and describe the characteristics of each segment?",
-    "Who are our top 10 customers by lifetime value?",
-    "What are the seasonal trends in our sales data?",
-    "Is there a correlation between discount applied and total cost?",
-    "What's the most common payment method for high-value transactions?",
-    "How does the average transaction value vary across different store types?",
-    "Can you identify any interesting patterns or anomalies in the data?",
-    "What are the top products purchased by male and female customers?",
-    "What are the top categories of products sold in each location?",
-    "What are the top products sold in each location?",
-    "What are the most common payment methods used by customers in each location and category?",
-    "What are the promotions that cause the greatest increase in sales?",
+  const faqQuestions: FAQItem[] = [
+    {
+      question: "What are the top 5 products by total sales?",
+      analysisType: "product",
+    },
+    {
+      question:
+        "Can you perform customer segmentation and describe the characteristics of each segment?",
+      analysisType: "customer",
+    },
+    {
+      question: "What are the seasonal trends in our sales data?",
+      analysisType: "seasonal",
+    },
+    {
+      question:
+        "Is there a correlation between discount applied and total cost?",
+      analysisType: "financial",
+    },
+    {
+      question:
+        "What's the most common payment method for high-value transactions?",
+      analysisType: "transaction",
+    },
+    {
+      question:
+        "Can you identify any interesting patterns or anomalies in the data?",
+      analysisType: "anomaly",
+    },
+    {
+      question:
+        "What are the top products purchased by male and female customers?",
+      analysisType: "gender_based_item",
+    },
+    {
+      question:
+        "What are the top categories of products sold in each location?",
+      analysisType: "location_based_category",
+    },
+    {
+      question: "What are the top products sold in each location?",
+      analysisType: "location_based_item",
+    },
+    {
+      question:
+        "What are the most common payment methods used by customers in each location and category?",
+      analysisType: "payment_method",
+    },
+    {
+      question:
+        "What are the promotions that cause the greatest increase in sales?",
+      analysisType: "promotion",
+    },
   ];
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      console.log("Form submitted with query:", query);
-      setIsLoading(true);
+  const fetchAIResponse = useCallback(
+    async (
+      query: string,
+      analysisType: AnalysisType = "custom"
+    ): Promise<AIResponse> => {
       try {
-        const result = await mockApiCall(query);
+        const response = await api.post("/analyze", {
+          analysis_type: analysisType,
+          custom_question: analysisType === "custom" ? query : undefined,
+        });
+
+        return response.data.result;
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          if (error.response?.status === 429) {
+            throw new Error("Rate limit exceeded. Please try again later.");
+          }
+          throw new Error(`Failed to fetch AI response: ${error.message}`);
+        }
+        throw new Error("An unexpected error occurred");
+      }
+    },
+    []
+  );
+
+  const handleQuery = useCallback(
+    async (queryText: string, analysisType: AnalysisType = "custom") => {
+      setIsLoading(true);
+      setQuery(queryText);
+      try {
+        const result = await fetchAIResponse(queryText, analysisType);
         setResponse(result);
         setIsExpanded(true);
       } catch (error) {
@@ -52,34 +145,30 @@ const AIAssistant: React.FC = () => {
         setIsLoading(false);
       }
     },
-    [query]
+    [fetchAIResponse]
+  );
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      handleQuery(query);
+    },
+    [query, handleQuery]
   );
 
   const handleFaqClick = useCallback(
-    (question: string) => {
-      console.log("FAQ clicked:", question);
-      setQuery(question);
-      handleSubmit({
-        preventDefault: () => {},
-      } as React.FormEvent<HTMLFormElement>);
+    (faqItem: FAQItem) => {
+      handleQuery(faqItem.question, faqItem.analysisType);
     },
-    [handleSubmit]
+    [handleQuery]
   );
-
-  const mockApiCall = (query: string): Promise<AIResponse> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(`This is a mock response for: "${query}"`);
-      }, 1000);
-    });
-  };
 
   return (
     <Card className="w-full rounded-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
           <MessageSquare className="h-5 w-5" />
-          AI Assistant
+          Retail Analysis AI Assistant
         </CardTitle>
         <CardDescription>Ask questions about your retail data</CardDescription>
       </CardHeader>
@@ -89,10 +178,9 @@ const AIAssistant: React.FC = () => {
             <Input
               type="text"
               value={query}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                console.log("Input changed:", e.target.value);
-                setQuery(e.target.value);
-              }}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setQuery(e.target.value)
+              }
               placeholder="Ask a question..."
               className="flex-grow rounded-xl bg-white/10"
             />
@@ -130,14 +218,14 @@ const AIAssistant: React.FC = () => {
             Frequently Asked Questions
           </h3>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {faqQuestions.map((question, index) => (
+            {faqQuestions.map((faqItem, index) => (
               <Button
                 key={index}
                 variant="outline"
-                onClick={() => handleFaqClick(question)}
+                onClick={() => handleFaqClick(faqItem)}
                 className="h-auto w-full justify-start px-3 py-2 text-left rounded-xl"
               >
-                <span className="line-clamp-2">{question}</span>
+                <span className="line-clamp-2">{faqItem.question}</span>
               </Button>
             ))}
           </div>
