@@ -148,25 +148,49 @@ Remember to support your insights with specific data points and always tie your 
     def analyze(self, question):
         return self.agent.run(question)
 
-    def customer_segmentation(self):
+    def customer_segmentation(self, analysis_type=None):
         try:
-            features = ['Total_Items', 'Total_Cost']
-            X = self.df[features]
+            # Select features for clustering
+            features = ['Total_Cost', 'Total_Items']
+            X = self.df.groupby('Customer_Name')[features].mean().reset_index()
+            
+            # Normalize the features
             scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
+            X_scaled = scaler.fit_transform(X[features])
+            
+            # Perform K-means clustering
             kmeans = KMeans(n_clusters=3, random_state=42)
-            self.df['Cluster'] = kmeans.fit_predict(X_scaled)
+            X['Cluster'] = kmeans.fit_predict(X_scaled)
             
-            cluster_summary = self.df.groupby('Cluster').agg({
-                'Total_Items': 'mean',
-                'Total_Cost': 'mean',
-                'Customer_Name': 'count'
-            }).rename(columns={'Customer_Name': 'Count'})
+            # Calculate cluster characteristics
+            cluster_characteristics = X.groupby('Cluster')[features].mean()
             
-            return cluster_summary.to_dict()
+            # Add more descriptive statistics
+            cluster_characteristics['Customer_Count'] = X.groupby('Cluster').size()
+            cluster_characteristics['Avg_Purchase_Frequency'] = self.df.groupby('Customer_Name').size().groupby(X.set_index('Customer_Name')['Cluster']).mean()
+            
+            # Describe segments
+            segments = {
+                0: "Budget Conscious",
+                1: "Average Spenders",
+                2: "High-Value Customers"
+            }
+            
+            results = {}
+            for cluster, name in segments.items():
+                results[name] = {
+                    "Average Total Cost": round(cluster_characteristics.loc[cluster, 'Total_Cost'], 2),
+                    "Average Items per Purchase": round(cluster_characteristics.loc[cluster, 'Total_Items'], 2),
+                    "Customer Count": int(cluster_characteristics.loc[cluster, 'Customer_Count']),
+                    "Average Purchase Frequency": round(cluster_characteristics.loc[cluster, 'Avg_Purchase_Frequency'], 2)
+                }
+            
+            return results
         except Exception as e:
             logging.error(f"Error in customer segmentation: {str(e)}")
             return str(e)
+
+
 
     def seasonal_trends(self, analysis_type=None):
         try:
@@ -221,14 +245,43 @@ Remember to support your insights with specific data points and always tie your 
             logging.error(f"Error in customer lifetime value calculation: {str(e)}")
             return str(e)
 
-    def product_performance_analysis(self):
+    def product_performance_analysis(self, analysis_type=None):
         try:
-            product_performance = self.df.groupby('Item_Name').agg({
-                'Total_Cost': 'sum',
-                'Quantity': 'sum',
-                'Total_Items': 'count'
-            }).sort_values('Total_Cost', ascending=False)
-            return product_performance.head(10).to_dict()
+            logging.debug(f"DataFrame columns: {self.df.columns.tolist()}")
+            logging.debug(f"DataFrame shape: {self.df.shape}")
+            logging.debug(f"DataFrame info:\n{self.df.info()}")
+
+            # Try to identify the correct column names
+            product_column = next((col for col in self.df.columns if 'product' in col.lower()), None)
+            store_column = next((col for col in self.df.columns if 'store' in col.lower()), None)
+            quantity_column = next((col for col in self.df.columns if 'quantity' in col.lower() or 'items' in col.lower()), None)
+            sales_column = next((col for col in self.df.columns if 'cost' in col.lower() or 'sales' in col.lower()), None)
+
+            if not all([product_column, store_column, quantity_column, sales_column]):
+                raise ValueError(f"Unable to identify required columns. Found: Product: {product_column}, Store: {store_column}, Quantity: {quantity_column}, Sales: {sales_column}")
+
+            product_performance = self.df.groupby([store_column, product_column]).agg({
+                sales_column: 'sum',
+                quantity_column: 'sum',
+            }).reset_index()
+
+            if analysis_type == "Top products sold in each location":
+                results = {}
+                for store in product_performance[store_column].unique():
+                    store_products = product_performance[product_performance[store_column] == store]
+                    top_products = store_products.nlargest(5, quantity_column)
+                    results[store] = [
+                        {
+                            "Product": product[product_column],
+                            "Quantity": int(product[quantity_column]),
+                            "Total_Sales": float(product[sales_column])
+                        }
+                        for _, product in top_products.iterrows()
+                    ]
+                
+                return results
+            else:
+                return product_performance.sort_values(sales_column, ascending=False).head(10).to_dict('records')
         except Exception as e:
             logging.error(f"Error in product performance analysis: {str(e)}")
             return str(e)
@@ -251,15 +304,31 @@ Remember to support your insights with specific data points and always tie your 
             logging.error(f"Error in store performance analysis: {str(e)}")
             return str(e)
 
-    def promotion_effectiveness_analysis(self):
+    def promotion_effectiveness_analysis(self, analysis_type=None):
         try:
             self.df['Discount_Rate'] = self.df['Discount_Applied'] / self.df['Total_Cost']
             promotion_effectiveness = self.df.groupby('Store_Type').agg({
                 'Discount_Rate': 'mean',
-                'Total_Cost': 'mean',
-                'Quantity': 'mean'
+                'Total_Cost': 'sum',
+                'Quantity': 'sum'
             })
-            return promotion_effectiveness.to_dict()
+
+            if analysis_type == "Identify promotions that lead to the greatest increase in sales":
+                # Calculate the correlation between discount rate and total sales
+                correlation = self.df.groupby('Store_Type').apply(lambda x: x['Discount_Rate'].corr(x['Total_Cost']))
+                
+                # Identify store types where higher discounts lead to higher sales
+                effective_promotions = correlation[correlation > 0].sort_values(ascending=False)
+                
+                results = {
+                    "promotion_effectiveness": promotion_effectiveness.to_dict(),
+                    "discount_sales_correlation": correlation.to_dict(),
+                    "most_effective_promotions": effective_promotions.to_dict()
+                }
+                
+                return results
+            else:
+                return promotion_effectiveness.to_dict()
         except Exception as e:
             logging.error(f"Error in promotion effectiveness analysis: {str(e)}")
             return str(e)
