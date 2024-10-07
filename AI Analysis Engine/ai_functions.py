@@ -13,6 +13,7 @@ from langchain.agents import initialize_agent, AgentType
 import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
+from functools import lru_cache
 
 load_dotenv()
 
@@ -34,23 +35,28 @@ You are an expert retail data analyst with years of experience in interpreting c
 4. Suggest concrete, data-driven strategies to improve sales, customer retention, and overall business performance.
 5. When appropriate, compare current performance to industry benchmarks or historical data.
 6. Always consider the practical application of your insights for business decision-making.
-7. Donot create images...
-8. Always give data driven analysis
+7. Do not create images.
+8. Always give data-driven analysis with specific numbers and percentages.
+9. Provide clear, actionable recommendations based on the analysis.
+10. When possible, segment the data to provide more nuanced insights.
 """
         self.context = """
 When analyzing the data, consider these industry-specific metrics and KPIs:
 
-Sales per square foot
-Inventory turnover ratio
-Gross margin return on investment (GMROI)
-Customer acquisition cost (CAC)
-Average transaction value
-Conversion rate
-Year-over-year growth
-Same-store sales growth
+- Sales per square foot
+- Inventory turnover ratio
+- Gross margin return on investment (GMROI)
+- Customer acquisition cost (CAC)
+- Average transaction value
+- Conversion rate
+- Year-over-year growth
+- Same-store sales growth
+- Customer lifetime value (CLV)
+- Net Promoter Score (NPS)
+- Sell-through rate
+- Shrinkage rate
 
-Remember to support your insights with specific data points, visualizations when appropriate, and always tie your recommendations back to potential business impact.
-
+Remember to support your insights with specific data points and always tie your recommendations back to potential business impact.
 """
         self.tools = self._create_tools()
         self.agent = self._setup_agent()
@@ -58,17 +64,14 @@ Remember to support your insights with specific data points, visualizations when
     def _load_data(self, csv_path):
         logging.debug(f"Attempting to load data from {csv_path}")
         
-        # Check if the file exists
         if not os.path.exists(csv_path):
             logging.error(f"CSV file not found: {csv_path}")
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
         
-        # Check if the file is readable
         if not os.access(csv_path, os.R_OK):
             logging.error(f"CSV file is not readable: {csv_path}")
             raise PermissionError(f"CSV file is not readable: {csv_path}")
         
-        # Try to read the CSV file
         try:
             df = pd.read_csv(csv_path)
             logging.debug(f"Successfully loaded CSV file with {len(df)} rows")
@@ -76,11 +79,12 @@ Remember to support your insights with specific data points, visualizations when
             logging.error(f"Error reading CSV file: {str(e)}")
             raise
 
-        # Process the dataframe
         try:
             df['Date'] = pd.to_datetime(df['Date'])
             df['Month'] = df['Date'].dt.month
             df['Year'] = df['Date'].dt.year
+            df['Season'] = df['Month'].map({12:1, 1:1, 2:1, 3:2, 4:2, 5:2, 6:3, 7:3, 8:3, 9:4, 10:4, 11:4})
+            df['Season'] = df['Season'].map({1:'Winter', 2:'Spring', 3:'Summer', 4:'Fall'})
             logging.debug("Data processed successfully")
         except Exception as e:
             logging.error(f"Error processing data: {str(e)}")
@@ -97,18 +101,33 @@ Remember to support your insights with specific data points, visualizations when
             ),
             Tool(
                 name="Customer Segmentation",
-                func=lambda _: self.customer_segmentation(),
+                func=self.customer_segmentation,
                 description="Perform customer segmentation using K-means clustering."
             ),
             Tool(
                 name="Seasonal Trends Analysis",
-                func=lambda _: self.seasonal_trends(),
+                func=self.seasonal_trends,
                 description="Analyze and visualize seasonal sales trends."
             ),
             Tool(
                 name="Customer Lifetime Value",
-                func=lambda _: self.customer_lifetime_value(),
+                func=self.customer_lifetime_value,
                 description="Calculate customer lifetime value."
+            ),
+            Tool(
+                name="Product Performance Analysis",
+                func=self.product_performance_analysis,
+                description="Analyze the performance of products based on sales and profitability."
+            ),
+            Tool(
+                name="Store Performance Analysis",
+                func=self.store_performance_analysis,
+                description="Analyze the performance of different store locations."
+            ),
+            Tool(
+                name="Promotion Effectiveness Analysis",
+                func=self.promotion_effectiveness_analysis,
+                description="Analyze the effectiveness of different promotional campaigns."
             )
         ]
 
@@ -125,33 +144,126 @@ Remember to support your insights with specific data points, visualizations when
             }
         )
 
+    @lru_cache(maxsize=None)
     def analyze(self, question):
         return self.agent.run(question)
 
     def customer_segmentation(self):
-        features = ['Total_Items', 'Total_Cost']
-        X = self.df[features]
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        kmeans = KMeans(n_clusters=3, random_state=42)
-        self.df['Cluster'] = kmeans.fit_predict(X_scaled)
-        return self.df
+        try:
+            features = ['Total_Items', 'Total_Cost']
+            X = self.df[features]
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+            kmeans = KMeans(n_clusters=3, random_state=42)
+            self.df['Cluster'] = kmeans.fit_predict(X_scaled)
+            
+            cluster_summary = self.df.groupby('Cluster').agg({
+                'Total_Items': 'mean',
+                'Total_Cost': 'mean',
+                'Customer_Name': 'count'
+            }).rename(columns={'Customer_Name': 'Count'})
+            
+            return cluster_summary.to_dict()
+        except Exception as e:
+            logging.error(f"Error in customer segmentation: {str(e)}")
+            return str(e)
 
-    def seasonal_trends(self):
-        seasonal_sales = self.df.groupby(['Season', 'Year'])['Total_Cost'].sum().unstack()
-        plt.figure(figsize=(12, 6))
-        seasonal_sales.plot(kind='bar')
-        plt.title('Seasonal Sales Trends')
-        plt.xlabel('Season')
-        plt.ylabel('Total Sales')
-        plt.legend(title='Year')
-        plt.tight_layout()
-        plt.savefig('seasonal_trends.png')
-        return 'Seasonal trends analysis completed. Check seasonal_trends.png for the visualization.'
+    def seasonal_trends(self, analysis_type=None):
+        try:
+            seasonal_sales = self.df.groupby(['Season', 'Year'])['Total_Cost'].sum().unstack()
+            
+            if analysis_type == "Identify any interesting patterns or anomalies in the seasonal sales trends data.":
+                # Calculate year-over-year growth
+                yoy_growth = seasonal_sales.pct_change()
+                
+                # Calculate average seasonal pattern
+                avg_seasonal_pattern = seasonal_sales.mean(axis=1)
+                
+                # Identify seasons with unusual growth or decline
+                unusual_growth = yoy_growth[yoy_growth.abs() > 0.2]  # 20% threshold for unusual growth/decline
+                
+                # Identify seasons that deviate significantly from the average pattern
+                deviations = seasonal_sales.sub(avg_seasonal_pattern, axis=0).abs()
+                significant_deviations = deviations[deviations > deviations.mean() + 2*deviations.std()]
+                
+                results = {
+                    "seasonal_sales": seasonal_sales.to_dict(),
+                    "year_over_year_growth": yoy_growth.to_dict(),
+                    "average_seasonal_pattern": avg_seasonal_pattern.to_dict(),
+                    "unusual_growth": unusual_growth.to_dict(),
+                    "significant_deviations": significant_deviations.to_dict()
+                }
+                
+                # Analyze and summarize findings
+                summary = []
+                if not unusual_growth.empty:
+                    summary.append(f"Unusual growth/decline (>20%) observed in: {', '.join(unusual_growth.index.get_level_values('Season').unique())}")
+                if not significant_deviations.empty:
+                    summary.append(f"Significant deviations from average pattern observed in: {', '.join(significant_deviations.index.get_level_values('Season').unique())}")
+                if seasonal_sales.idxmax().nunique() == 1:
+                    peak_season = seasonal_sales.idxmax().iloc[0]
+                    summary.append(f"Consistent peak season across years: {peak_season}")
+                
+                results["summary"] = summary
+                
+                return results
+            else:
+                return seasonal_sales.to_dict()
+        except Exception as e:
+            logging.error(f"Error in seasonal trends analysis: {str(e)}")
+            return str(e)
 
     def customer_lifetime_value(self):
-        clv = self.df.groupby('Customer_Name')['Total_Cost'].sum().sort_values(ascending=False)
-        return clv.to_dict()
+        try:
+            clv = self.df.groupby('Customer_Name')['Total_Cost'].sum().sort_values(ascending=False)
+            return clv.head(10).to_dict()
+        except Exception as e:
+            logging.error(f"Error in customer lifetime value calculation: {str(e)}")
+            return str(e)
+
+    def product_performance_analysis(self):
+        try:
+            product_performance = self.df.groupby('Item_Name').agg({
+                'Total_Cost': 'sum',
+                'Quantity': 'sum',
+                'Total_Items': 'count'
+            }).sort_values('Total_Cost', ascending=False)
+            return product_performance.head(10).to_dict()
+        except Exception as e:
+            logging.error(f"Error in product performance analysis: {str(e)}")
+            return str(e)
+
+    def store_performance_analysis(self, analysis_type=None):
+        try:
+            if analysis_type == "Top products sold in each location":
+                top_products = self.df.groupby(['Store_Type', 'Item_Name'])['Quantity'].sum().reset_index()
+                top_products = top_products.sort_values(['Store_Type', 'Quantity'], ascending=[True, False])
+                top_products = top_products.groupby('Store_Type').head(5)
+                return top_products.to_dict(orient='records')
+            else:
+                store_performance = self.df.groupby('Store_Type').agg({
+                    'Total_Cost': 'sum',
+                    'Total_Items': 'sum',
+                    'Customer_Name': 'nunique'
+                }).rename(columns={'Customer_Name': 'Unique_Customers'})
+                return store_performance.to_dict()
+        except Exception as e:
+            logging.error(f"Error in store performance analysis: {str(e)}")
+            return str(e)
+
+    def promotion_effectiveness_analysis(self):
+        try:
+            self.df['Discount_Rate'] = self.df['Discount_Applied'] / self.df['Total_Cost']
+            promotion_effectiveness = self.df.groupby('Store_Type').agg({
+                'Discount_Rate': 'mean',
+                'Total_Cost': 'mean',
+                'Quantity': 'mean'
+            })
+            return promotion_effectiveness.to_dict()
+        except Exception as e:
+            logging.error(f"Error in promotion effectiveness analysis: {str(e)}")
+            return str(e)
+
 
 class ProductAnalysis:
     def __init__(self, analyzer):

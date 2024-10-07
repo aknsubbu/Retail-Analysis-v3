@@ -385,7 +385,7 @@ const Dashboard: React.FC = () => {
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Select time period" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-indigo-500/50">
                     <SelectItem value="week">Weekly</SelectItem>
                     <SelectItem value="month">Monthly</SelectItem>
                     <SelectItem value="year">Yearly</SelectItem>
@@ -467,8 +467,9 @@ const Dashboard: React.FC = () => {
                     data={storeTypeData}
                     dataKey="value"
                     fill="#8884d8"
-                    labelLine={false}
+                    labelLine={true}
                     outerRadius={80}
+                    label={({ name, value }) => `${name} (${value})`}
                   >
                     {storeTypeData.map((entry, index) => (
                       <Cell
@@ -499,8 +500,9 @@ const Dashboard: React.FC = () => {
                     data={productCategoryData}
                     dataKey="value"
                     fill="#82ca9d"
-                    labelLine={false}
+                    labelLine={true}
                     outerRadius={80}
+                    label={({ name, value }) => `${name} ($${value})`}
                   >
                     {productCategoryData.map((entry, index) => (
                       <Cell
